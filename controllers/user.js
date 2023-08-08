@@ -47,3 +47,22 @@ export async function createUser(req, res) {
     return res.status(500).json({ error: "Something went wrong!" });
   }
 }
+
+export async function deleteUser(req, res) {
+  const { userId } = req.body;
+
+  const params = {
+    TableName: USERS_TABLE,
+    Key: {
+      userId,
+    },
+  };
+
+  try {
+    await dynamoDbClient.delete(params).promise();
+    return res.status(200).json({ message: "User deleted successfully!" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Something went wrong!" });
+  }
+}
