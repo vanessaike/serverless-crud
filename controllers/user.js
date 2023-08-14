@@ -14,7 +14,6 @@ export async function getUser(req, res) {
 
   try {
     const { Item } = await dynamoDbClient.get(params).promise();
-
     if (Item) {
       const { userId, username, email } = Item;
       return res.status(200).json({ userId, username, email });
@@ -29,18 +28,35 @@ export async function getUser(req, res) {
 
 export async function createUser(req, res) {
   const { username, email, password } = req.body;
-  const userId = uuidv4();
-  const params = {
-    TableName: USERS_TABLE,
-    Item: {
-      userId,
-      username,
-      email,
-      password,
-    },
-  };
 
   try {
+    // Validating if user already exists
+    const checkUserParams = {
+      TableName: USERS_TABLE,
+      ProjectionExpression: "userId",
+      FilterExpression: "username = :username OR email = :email",
+      ExpressionAttributeValues: {
+        ":username": username,
+        ":email": email,
+      },
+    };
+    const existingUser = await dynamoDbClient.scan(checkUserParams).promise();
+    if (existingUser.Items.length >= 1) {
+      return res.status(400).json({ message: "User already exists. Please, try again." });
+    }
+
+    // Creating a new user in case it doesn't exist yet
+    const userId = uuidv4();
+    const params = {
+      TableName: USERS_TABLE,
+      Item: {
+        userId,
+        username,
+        email,
+        password,
+      },
+    };
+
     await dynamoDbClient.put(params).promise();
     return res.status(201).json({ message: "User created successfully", userId, username, email });
   } catch (error) {
@@ -51,7 +67,6 @@ export async function createUser(req, res) {
 
 export async function deleteUser(req, res) {
   const { userId } = req.body;
-
   const params = {
     TableName: USERS_TABLE,
     Key: {
