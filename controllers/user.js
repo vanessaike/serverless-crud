@@ -1,5 +1,7 @@
 import AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
+import bcrypt from "bcryptjs";
+import { validationResult } from "express-validator";
 
 const dynamoDbClient = new AWS.DynamoDB.DocumentClient();
 const USERS_TABLE = process.env.USERS_TABLE;
@@ -30,30 +32,38 @@ export async function createUser(req, res) {
   const { username, email, password } = req.body;
 
   try {
+    // Validating inputs
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        message: "Invalid input. Check if your e-mail is valid or if your password is at least 6 characters long.",
+      });
+    }
+
     // Validating if user already exists
     const checkUserParams = {
       TableName: USERS_TABLE,
       ProjectionExpression: "userId",
-      FilterExpression: "username = :username OR email = :email",
+      FilterExpression: "username = :username",
       ExpressionAttributeValues: {
         ":username": username,
-        ":email": email,
       },
     };
     const existingUser = await dynamoDbClient.scan(checkUserParams).promise();
     if (existingUser.Items.length >= 1) {
-      return res.status(400).json({ message: "User already exists. Please, try again." });
+      return res.status(400).json({ message: "E-mail already exists. Please, try again." });
     }
 
     // Creating a new user in case it doesn't exist yet
     const userId = uuidv4();
+    const hashedPw = await bcrypt.hash(password, 12);
     const params = {
       TableName: USERS_TABLE,
       Item: {
         userId,
         username,
         email,
-        password,
+        password: hashedPw,
       },
     };
 
@@ -85,6 +95,7 @@ export async function deleteUser(req, res) {
 
 export async function updateUser(req, res) {
   const { userId, username, email, password } = req.body;
+  const hashedPw = await bcrypt.hash(password, 12);
   const params = {
     TableName: USERS_TABLE,
     Key: {
@@ -94,15 +105,22 @@ export async function updateUser(req, res) {
     ExpressionAttributeValues: {
       ":username": username,
       ":email": email,
-      ":password": password,
+      ":password": hashedPw,
     },
     ReturnValues: "ALL_NEW",
   };
 
   try {
+    // Validating inputs
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        message: "Invalid input. Check if your e-mail is valid or if your password is at least 6 characters long.",
+      });
+    }
     const data = await dynamoDbClient.update(params).promise();
     const { username, email, userId } = data.Attributes;
-    return res.status(200).json({ message: "User updated successfully!", user: { username, email, userId } });
+    return res.status(200).json({ message: "User updated successfully!", user: { userId, username, email } });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ error: "Something went wrong!" });
