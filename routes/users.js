@@ -1,17 +1,14 @@
 import { Router } from "express";
-import { body } from "express-validator";
-import * as userController from "../controllers/user";
+
+import UserController from "../controllers/user";
+import { createUserValidation } from "../utils/input-validation";
+import { updateUserValidation } from "../utils/input-validation";
 
 const router = Router();
+const userController = new UserController();
 
-const validation = [
-  body("username").notEmpty().trim().matches(/^[A-Za-z\s]+$/),
-  body("email").isEmail().normalizeEmail(),
-  body("password").isLength({ min: 6 }),
-];
-
-router.post("/create", validation, userController.createUser);
-router.post("/update", validation, userController.updateUser);
+router.post("/create", createUserValidation, userController.createUser);
+router.post("/update", updateUserValidation, userController.updateUser);
 router.delete("/delete", userController.deleteUser);
 router.get("/:userId", userController.getUser);
 
