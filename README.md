@@ -4,7 +4,7 @@
 
 Simple CRUD API built with NodeJS and deployed to AWS. It uses DynamoDB to store data and the Serverless framework.
 
-## Pre-requisits
+## Requirements
 
 - NodeJS installed
 - An AWS account
